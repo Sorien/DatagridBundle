@@ -12,24 +12,30 @@
 namespace Sorien\DataGridBundle\Grid\Column;
 
 use Sorien\DataGridBundle\Grid\Filter;
+use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
 class TextColumn extends Column
 {
     public function getFilters()
     {
-        return array(new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data.'.*/i'));
+        return array(new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data->get('value', '').'.*/i'));
     }
 
-    public function setData($data)
+    public function setData(FilterStorageBag $data)
     {
-        if (is_string($data) && $data != '')
+        if ($data->get('value', '') != '')
         {
-            $this->data = $data;
+            $this->data->assign($data);
         }
 
         return $this;
     }
-    
+
+    public function isFiltered()
+    {
+        return $this->data->has('value');
+    }
+
     public function getType()
     {
         return 'text';

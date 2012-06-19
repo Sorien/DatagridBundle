@@ -12,6 +12,7 @@
 namespace Sorien\DataGridBundle\Grid\Column;
 
 use Sorien\DataGridBundle\Grid\Filter;
+use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
 class RangeColumn extends Column
 {
@@ -37,59 +38,37 @@ class RangeColumn extends Column
     {
         $result = array();
 
-        if ($this->data['from'] != '')
+        if ($this->data->has('from'))
         {
-           $result[] =  new Filter(self::OPERATOR_GTE, (int)$this->data['from']);
+           $result[] =  new Filter(self::OPERATOR_GTE, $this->data->getInt('from'));
         }
 
-        if ($this->data['to'] != '')
+        if ($this->data->has('to'))
         {
-           $result[] =  new Filter(self::OPERATOR_LTE, (int)$this->data['to']);
+           $result[] =  new Filter(self::OPERATOR_LTE,  $this->data->getInt('to'));
         }
 
         return $result;
     }
 
-    public function setData($data)
+    public function setData(FilterStorageBag $data)
     {
-        $this->data = array('from' => '', 'to' => '');
-
-        if (is_array($data))
+        if ($data->get('from', 0) != 0)
         {
-            if (isset($data['from']) && is_string($data['from']))
-            {
-                $this->data['from'] = $data['from'];
-            }
+            $this->data->set('from', $data->get('from'));
+        }
 
-            if (isset($data['to']) && is_string($data['to']))
-            {
-               $this->data['to'] = $data['to'];
-            }
+        if ($data->get('to', 0) != 0)
+        {
+            $this->data->set('to', $data->get('to'));
         }
 
         return $this;
     }
 
-    public function getData()
-    {
-        $result = array();
-
-        if ($this->data['from'] != '')
-        {
-           $result['from'] =  $this->data['from'];
-        }
-
-        if ($this->data['to'] != '')
-        {
-           $result['to'] =  $this->data['to'];
-        }
-
-        return $result;
-    }
-
     public function isFiltered()
     {
-        return $this->data['from'] != '' || $this->data['to'] != '';
+        return ($this->data->has('from') || $this->data->has('to'));
     }
 
     public function getType()

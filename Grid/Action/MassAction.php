@@ -16,6 +16,7 @@ class MassAction implements MassActionInterface
     private $title;
     private $callback;
     private $confirm;
+    private $arguments;
     
     /**
      * Default MassAction constructor
@@ -23,20 +24,21 @@ class MassAction implements MassActionInterface
      * @param string $title Title of the mass action
      * @param string $callback Callback of the mass action
      * @param boolean $confirm Show confirm message if true
-     * @return \Sorien\DataGridBundle\Grid\Action\MassAction
+     * @return MassAction
      */
-    public function __construct($title, $callback = null, $confirm = false)
+    public function __construct($title, $callback = null, $confirm = '', $arguments = array())
     {
-        $this->title = $title;
-        $this->callback = $callback;
-        $this->confirm = $confirm;
+        $this->setTitle($title);
+        $this->setCallback($callback);
+        $this->setConfirm($confirm);
+        $this->setArguments($arguments);
     }
 
     /**
      * Set action title
      *
      * @param $title
-     * @return \Sorien\DataGridBundle\Grid\Action\MassAction
+     * @return MassAction
      */
     public function setTitle($title)
     {
@@ -59,7 +61,7 @@ class MassAction implements MassActionInterface
      * Set action callback
      *
      * @param  $callback
-     * @return \Sorien\DataGridBundle\Grid\Action\MassAction
+     * @return MassAction
      */
     public function setCallback($callback)
     {
@@ -82,11 +84,11 @@ class MassAction implements MassActionInterface
      * Set action confirm
      *
      * @param  $confirm
-     * @return \Sorien\DataGridBundle\Grid\Action\MassAction
+     * @return MassAction
      */
     public function setConfirm($confirm)
     {
-        $this->confirm = $confirm;
+        $this->confirm = str_replace('{title}', $this->getTitle(), $confirm);
 
         return $this;
     }
@@ -94,10 +96,26 @@ class MassAction implements MassActionInterface
     /**
      * get action confirm
      *
-     * @return boolean
+     * @return string
      */
     public function getConfirm()
     {
         return $this->confirm;
+    }
+
+    /**
+     * @param $arguments
+     */
+    public function setArguments($arguments)
+    {
+        $this->arguments = $arguments;
+    }
+
+    /**
+     * @return array
+     */
+    public function getArguments()
+    {
+        return $this->arguments;
     }
 }

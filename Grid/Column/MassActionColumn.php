@@ -23,15 +23,15 @@ class MassActionColumn extends Column
         parent::__construct(array('id' => self::ID, 'title' => '', 'size' => 15, 'sortable' => false, 'source' => false, 'align' => 'center'));
     }
 
-    public function renderFilter($gridHash)
-    {
-        return '<input type="checkbox" class="grid-mass-selector" onclick="'.$gridHash.'_mark_visible(this.checked); return true;"/>';
-    }
+//    public function renderFilter($gridHash)
+//    {
+//        return '<input type="checkbox" class="grid-mass-selector" onclick="'.$gridHash.'_mark_visible(this.checked); return true;"/>';
+//    }
 
-    public function renderCell($value, $row, $router)
-    {
-        return '<input type="checkbox" class="action" value="1" name="'.$this->gridHash.'['.self::ID.']['.$row->getPrimaryFieldValue().']"/>';
-    }
+//    public function renderCell($value, $row, $router)
+//    {
+//        return '<input type="checkbox" class="action" value="1" name="'.$this->gridHash.'['.self::ID.']['.$row->getPrimaryFieldValue().']"/>';
+//    }
 	    
     public function getType()
     {

@@ -12,6 +12,7 @@
 namespace Sorien\DataGridBundle\Grid\Column;
 
 use Symfony\Component\Security\Core\SecurityContextInterface;
+use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
 abstract class Column
 {
@@ -57,7 +58,7 @@ abstract class Column
     private $securityContext;
 
     /**
-     * @todo make private
+     * @var FilterStorageBag
      */
     protected $data;
 
@@ -88,6 +89,8 @@ abstract class Column
         $this->setField($this->getParam('field'));
         $this->setRole($this->getParam('role'));
         $this->setOrder($this->getParam('order'));
+
+        $this->data = new FilterStorageBag();
     }
 
     protected function getParam($id, $default = null)
@@ -238,7 +241,7 @@ abstract class Column
      */
     public function isFiltered()
     {
-        return $this->data != null;
+        return !$this->data->isEmpty();
     }
 
     public function setFilterable($filterable)
@@ -362,19 +365,19 @@ abstract class Column
     /**
      * Set filter data from Storage or Request
      *
-     * @param  $data
+     * @param  FilterStorageBag $data
      * @return \Sorien\DataGridBundle\Grid\Column\Column
      */
-    public function setData($data)
+    public function setData(FilterStorageBag $data)
     {
-        $this->data = $data;
+        $this->data->assign($data);
         return $this;
     }
 
     /**
      * Get filter data for Storage
      *
-     * @return array data
+     * @return FilterStorageBag data
      */
     public function getData()
     {

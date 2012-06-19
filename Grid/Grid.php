@@ -13,6 +13,7 @@
 namespace Sorien\DataGridBundle\Grid;
 
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 use Sorien\DataGridBundle\Grid\Columns;
 use Sorien\DataGridBundle\Grid\Rows;
@@ -22,6 +23,7 @@ use Sorien\DataGridBundle\Grid\Column\Column;
 use Sorien\DataGridBundle\Grid\Column\MassActionColumn;
 use Sorien\DataGridBundle\Grid\Column\ActionsColumn;
 use Sorien\DataGridBundle\Grid\Source\Source;
+use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
 class Grid
 {
@@ -99,6 +101,11 @@ class Grid
      * @var \Sorien\DataGridBundle\Grid\Action\MassAction[]
      */
     private $massActions = array();
+
+    /**
+     * @var int
+     */
+    private $massActionsCounter = 0;
 
     /**
      * @var \Sorien\DataGridBundle\Grid\Action\RowAction[]
@@ -188,7 +195,7 @@ class Grid
     {
         $storage = $this->session->has($this->getHash()) ? $this->session->get($this->getHash()) : array();
 
-        if ((key_exists($key, $storage) && $value == null) or ($value == $default))
+        if ((key_exists($key, $storage) && $value == null) or ($value === $default))
         {
             unset($storage[$key]);
         }
@@ -266,19 +273,23 @@ class Grid
     {
         foreach ($this->columns as $column)
         {
-            $storedData = $this->load($column->getId(), false, true);
+            /** Last data in Session */
+            $storedData = new FilterStorageBag($this->load($column->getId(), false, true, array()));
 
-            $column->setData($this->load($column->getId()));
+            /** Store Combined Data */
+            $column->setData(new FilterStorageBag($this->load($column->getId(), true, true, array())));
 
+            /** Retrieve data from filter */
             $storeData = $column->getData();
 
-            //filter has changed reset page
-            if ($storedData !== $storeData)
+            /** Filter has changed reset page */
+            if ($storedData->equals($storeData) === false)
             {
                 $this->store(self::REQUEST_QUERY_PAGE, null);
             }
 
-            $this->store($column->getId(), $storeData);
+            /** Store Data */
+            $this->store($column->getId(), $storeData->all(), array());
         }
     }
 
@@ -334,36 +345,43 @@ class Grid
     public function executeMassActions()
     {
         $actionId = $this->load(Grid::REQUEST_QUERY_MASS_ACTION, true, false);
-
         $actionAllKeys = $this->load(Grid::REQUEST_QUERY_MASS_ACTION_ALL_KEYS_SELECTED, true, false);
-
-        $actionKeys = $actionAllKeys == false ? $this->load(MassActionColumn::ID, true, false) : array();
+        $actionKeys = $actionAllKeys ? $this->source->getPrimaryKeys($this->columns) : array_keys($this->load(MassActionColumn::ID, true, false, array()));
 
         if ($actionId > -1 && is_array($actionKeys))
         {
-            if (array_key_exists($actionId, $this->massActions))
+            foreach ($this->massActions as $group)
             {
-                $action = $this->massActions[$actionId];
+                foreach ($group as $massAction)
+                {
+                    if ($massAction['id'] == $actionId)
+                    {
+                        /** @var MassActionInterface $action  */
+                        $action = $massAction['action'];
 
-                if (is_callable($action->getCallback()))
-                {
-                    //call closure or static method
-                    call_user_func($action->getCallback(), array_keys($actionKeys), $actionAllKeys, $this->session);
-                }
-                elseif (substr_count($action->getCallback(), ':') == 2)
-                {
-                    //call controller action
-                    $this->container->get('http_kernel')->forward($action->getCallback(), array('primaryKeys' => array_keys($actionKeys), 'allPrimaryKeys' => $actionAllKeys));
-                }
-                else
-                {
-                    throw new \RuntimeException(sprintf('Callback %s is not callable or Controller action', $action->getCallback()));
+                        if (is_callable($action->getCallback()))
+                        {
+                            //call closure or static method
+                            call_user_func($action->getCallback(), $actionKeys, $action->getArguments(), $this->session);
+                        }
+                        elseif (substr_count($action->getCallback(), ':') == 2)
+                        {
+                            //clear Request Id to prevent infinite loop when redirecting back from mass action
+                            //call controller action
+                            $this->container->get('http_kernel')->forward($action->getCallback(), array_merge(array('keys' => $actionKeys), $action->getArguments() ));
+                            //
+                        }
+                        else
+                        {
+                            throw new \RuntimeException(sprintf('Callback %s is not callable or Controller action', $action->getCallback()));
+                        }
+
+                        return;
+                    }
                 }
             }
-            else
-            {
-                throw new \OutOfBoundsException(sprintf('Action %s is not defined.', $actionId));
-            }
+
+            throw new \OutOfBoundsException(sprintf('Action %s is not defined.', $actionId));
         }
     }
 
@@ -512,10 +530,9 @@ class Grid
      * @param Action\MassActionInterface $action
      * @return Grid
      */
-    public function addMassAction(MassActionInterface $action)
+    public function addMassAction(MassActionInterface $action, $group = '_default')
     {
-        $this->massActions[] = $action;
-
+        $this->massActions[$group][] = array('id' => $this->massActionsCounter++, 'action' => $action);
         return $this;
     }
 
@@ -843,7 +860,7 @@ class Grid
      *
      * @return Response A Response instance
      */
-    public function gridResponse(array $parameters = array(), $view = null, Response $response = null)
+    public function response($view = null, array $parameters = array(), Response $response = null)
     {
         if ($this->getState() == self::GRID_STATE_REDIRECT)
         {

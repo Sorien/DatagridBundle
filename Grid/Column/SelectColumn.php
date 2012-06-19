@@ -12,6 +12,7 @@
 namespace Sorien\DataGridBundle\Grid\Column;
 
 use Sorien\DataGridBundle\Grid\Filter;
+use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
 class SelectColumn extends Column
 {
@@ -25,11 +26,11 @@ class SelectColumn extends Column
         $this->values = $this->getParam('values', array());
     }
 
-    public function setData($data)
+    public function setData(FilterStorageBag $data)
     {
-        if ((is_string($data) || is_integer($data)) && $data != $this::BLANK && key_exists($data, $this->values))
+        if ($data->get('value', $this::BLANK) !== $this::BLANK)
         {
-            $this->data = $data;
+            $this->data->assign($data);
         }
 
         return $this;
@@ -37,7 +38,12 @@ class SelectColumn extends Column
 
     public function getFilters()
     {
-        return array(new Filter(self::OPERATOR_EQ, $this->data));
+        return array(new Filter(self::OPERATOR_EQ, $this->data->get('value')));
+    }
+
+    public function isFiltered()
+    {
+        return $this->data->has('value');
     }
 
     public function getValues()
@@ -47,6 +53,8 @@ class SelectColumn extends Column
 
     public function renderCell($value, $row, $router)
     {
+        $value = is_bool($value) ? (int)$value : $value;
+
         if (key_exists((string)$value, $this->values))
         {
             $value = $this->values[$value];

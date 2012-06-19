@@ -1,6 +1,5 @@
 <?php
-
-    /*
+/*
  * This file is part of the DataGridBundle.
  *
  * (c) Stanislav Turza <sorien@mail.com>
@@ -25,7 +24,7 @@ class BooleanColumn extends SelectColumn
 
     public function renderCell($value, $row, $router)
     {
-        return parent::renderCell((int)$value, $row, $router);
+        return parent::renderCell($value, $row, $router);
     }
 
     public function getType()

@@ -33,4 +33,9 @@ interface MassActionInterface
      * @return boolean
      */
     public function getConfirm();
+
+    /**
+     * @return array
+     */
+    public function getArguments();
 }

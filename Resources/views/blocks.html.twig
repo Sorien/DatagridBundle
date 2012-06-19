@@ -1,7 +1,7 @@
 {# ------------------------------------------------------ grid ------------------------------------------------------ #}
 {% block grid %}
 <div class="grid">
-    <form id="{{ grid.hash }}" action="{{ grid.routeUrl }}" method="post">
+    <form id="{{ grid.hash }}" action="{{ grid.routeUrl }}" method="post" {% if grid.massActions|length > 0 %}onsubmit="return {{ grid.hash }}_submit(true);{% endif %}">
         {% if grid.massActions|length > 0 %}
             {{ grid_actions(grid) }}
         {% endif %}
@@ -101,36 +101,76 @@
     <div style="float:right">
         {{ 'Action'|trans }}
         <input type="hidden" id="{{grid.hash}}_mass_action_all" name="{{grid.hash}}[{{ constant('Sorien\\DataGridBundle\\Grid\\Grid::REQUEST_QUERY_MASS_ACTION_ALL_KEYS_SELECTED') }}]" value="0"/>
-        <select name="{{grid.hash}}[{{ constant('Sorien\\DataGridBundle\\Grid\\Grid::REQUEST_QUERY_MASS_ACTION') }}]">
-            <option value="-1"></option>
-            {% for key, value in grid.massActions %}
-            <option value="{{key}}">{{ value.title|trans }}</option>
+        <select id="{{grid.hash}}_selector" name="{{grid.hash}}[{{ constant('Sorien\\DataGridBundle\\Grid\\Grid::REQUEST_QUERY_MASS_ACTION') }}]">
+            <option value="-1" selected="selected"></option>
+            {% for group, items in grid.massActions %}
+                {% if group == '_default' %}
+                    {% for massaction in items %}
+                    <option value="{{massaction.id}}" confirm="{{ massaction.action.confirm }}">{{ massaction.action.title|trans }}</option>
+                    {% endfor %}
+                {% else %}
+                    <optgroup label="{{ group }}">
+                    {% for massaction in items %}
+                    <option value="{{massaction.id}}" confirm="{{ massaction.action.confirm }}">{{ massaction.action.title|trans }}</option>
+                    {% endfor %}
+                    </optgroup>
+                {% endif %}
             {% endfor %}
         </select>
-        <input type="submit"  value="{{ 'Submit Action'|trans }}"/>
+        <input type="submit" value="{{ 'Submit Action'|trans }}"/>
     </div>
     {% endspaceless %}
     {{ block('grid_scripts') }}
 </div>
 {% endblock grid_actions %}
-{# ------------------------------------------------ grid_action_columns --------------------------------------------- #}
-{% block grid_column___actions_cell %}
+{# ------------------------------------------------ grid_actions_columns --------------------------------------------- #}
+{% block grid_column_actions_cell %}
     {% for action in column.rowActions %}
         {% set confirm = action.confirm ? " onclick=\"return confirm('" ~ action.confirmMessage ~ "')\"" : '' %}
         <a href="{{ url(action.route, column.routeParameters(row, action), false) }}"{{ confirm }} target="{{ action.target }}">{{ action.title|trans }}</a>
     {% endfor %}
-{% endblock grid_column___actions_cell %}
+{% endblock grid_column_actions_cell %}
+{# ------------------------------------------------ grid_massaction_columns --------------------------------------------- #}
+{% block grid_column_massaction_cell %}
+    <input type="checkbox" class="action" value="1" name="{{hash}}[{{ constant('Sorien\\DataGridBundle\\Grid\\Column\\MassActionColumn::ID') }}][{{ row.getPrimaryFieldValue() }}]" onchange="{{ hash }}_recount()" />
+{% endblock grid_column_massaction_cell %}
 {# --------------------------------------------------- grid_scripts ------------------------------------------------- #}
 {% block grid_scripts %}
 <script type="text/javascript">
+function {{ grid.hash }}_submit(check)
+{
+    if (check)
+    {
+        var select = document.getElementById('{{grid.hash}}_selector');
+        var option = select.options[select.selectedIndex];
+        if (option && option.value != -1 && option.getAttribute("confirm") != '')
+        {
+            apprise(option.getAttribute("confirm"), {'confirm':true, 'textOk' : 'Áno', 'textCancel' : 'Zrušiť'}, function(result) {
+                if (result) {
+                    var form = document.getElementById('{{grid.hash}}');
+                    if (form)
+                    {
+                        form.setAttribute("onSubmit", '');
+                        form.submit();
+                    }
+                }
+            });
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function {{ grid.hash }}_mark_visible(select)
 {
     var form = document.getElementById('{{ grid.hash }}');
-    var counter = 0;
+    var counter = -1;
 
     for (var i=0; i < form.elements.length; i++ ) {
         if (form.elements[i].type == 'checkbox') {
             form.elements[i].checked = select;
+            form.elements[i].disabled = false;
 
             if (form.elements[i].checked){
                counter++;
@@ -139,7 +179,7 @@ function {{ grid.hash }}_mark_visible(select)
     }
 
     var selected = document.getElementById('{{ grid.hash }}_mass_action_selected');
-    selected.innerHTML = counter > 0 ? '{{ 'Selected _s_ rows'|trans }}'.replace('_s_', counter) : '';
+    selected.innerHTML = counter > 0 ? '{{ ' - Selected _s_ rows'|trans }}'.replace('_s_', counter) : '';
 
     document.getElementById('{{ grid.hash }}_mass_action_all').value = '0';
     return false;
@@ -151,6 +191,7 @@ function {{ grid.hash }}_mark_all(select)
     for (var i=0; i < form.elements.length; i++ ) {
         if (form.elements[i].type == 'checkbox') {
             form.elements[i].checked = select;
+            form.elements[i].disabled = select;
         }
     }
 
@@ -158,7 +199,7 @@ function {{ grid.hash }}_mark_all(select)
 
     if (select) {
         document.getElementById('{{ grid.hash }}_mass_action_all').value = '1';
-        selected.innerHTML = '{{ 'Selected _s_ rows'|trans }}'.replace('_s_', '{{ grid.totalCount }}');
+        selected.innerHTML = '{{ ' - Selected _s_ rows'|trans }}'.replace('_s_', '{{ grid.totalCount }}');
     } else {
         document.getElementById('{{ grid.hash }}_mass_action_all').value = '0';
         selected.innerHTML = '';
@@ -166,32 +207,56 @@ function {{ grid.hash }}_mark_all(select)
 
     return false;
 }
+
+function {{ grid.hash }}_recount()
+{
+    if (document.getElementById('{{ grid.hash }}_mass_action_all').value == '0') {
+        var form = document.getElementById('{{ grid.hash }}');
+        var counter =0;
+        for (var i=0; i < form.elements.length; i++ ) {
+            if (form.elements[i].type == 'checkbox' && form.elements[i].id != 'mass_checkbox') {
+                if (form.elements[i].checked){
+                    counter++;
+                }
+            }
+        }
+
+        var selected = document.getElementById('{{ grid.hash }}_mass_action_selected');
+        selected.innerHTML = counter > 0 ? '{{ ' - Selected _s_ rows'|trans }}'.replace('_s_', counter) : '';
+    }
+    return false;
+}
 </script>
 {% endblock grid_scripts %}
 {# -------------------------------------------- grid_column_type_range_filter --------------------------------------- #}
-{% block grid_column_type_range_filter %}
+{% block grid_column_massaction_filter %}
+{% set data = column.getData() %}
+    <input type="checkbox" class="grid-mass-selector" id="mass_checkbox" onclick="{{hash}}_mark_visible(this.checked); return true;"/>
+{% endblock grid_column_massaction_filter %}
+{# -------------------------------------------- grid_column_type_range_filter --------------------------------------- #}
+{% block grid_column_range_filter %}
 {% set data = column.getData() %}
 	<div class="range-column-filter">
-        <input class="first-filter" placeholder="{{ 'From:'|trans }}" type="{{ column.getInputType() }}" value="{% if column.data['from'] is defined %}{{ data['from'] }}{% endif %}" name="{{hash}}[{{column.id}}][from]" onkeypress="if (event.which == 13){this.form.submit();}"/><br/>
-        <input class="second-filter" placeholder="{{ 'To:' |trans }}" type="{{ column.getInputType() }}" value="{% if column.data['to'] is defined %}{{ data['to'] }}{% endif %}" name="{{hash}}[{{column.id}}][to]" onkeypress="if (event.which == 13){this.form.submit();}"/><br/>
+        <input class="first-filter" placeholder="{{ 'From:'|trans }}" type="{{ column.getInputType() }}" value="{{ data.get('from', '') }}" name="{{hash}}[{{column.id}}][from]" onkeypress="if (event.which == 13){this.form.submit();}"/><br/>
+        <input class="second-filter" placeholder="{{ 'To:' |trans }}" type="{{ column.getInputType() }}" value="{{ data.get('to', '') }}" name="{{hash}}[{{column.id}}][to]" onkeypress="if (event.which == 13){this.form.submit();}"/><br/>
    	</div>
-{% endblock grid_column_type_range_filter %}
+{% endblock grid_column_range_filter %}
 {# -------------------------------------------- grid_column_type_text_filter --------------------------------------- #}
-{% block grid_column_type_text_filter %}
-    <input type="text" value="{{ column.getData() }}" name="{{hash}}[{{column.id}}]" onkeypress="if (event.which == 13){this.form.submit();}"/>
-{% endblock grid_column_type_text_filter %}
+{% block grid_column_text_filter %}
+    <input type="text" value="{{ column.getData().get('value', '') }}" name="{{hash}}[{{column.id}}][value]" onkeypress="if (event.which == 13){this.form.submit();}"/>
+{% endblock grid_column_text_filter %}
 {# -------------------------------------------- grid_column_type_select_filter --------------------------------------- #}
-{% block grid_column_type_select_filter %}
-{% set data = column.getData() %}
-    <select name="{{hash}}[{{column.id}}]" onchange="this.form.submit();">
+{% block grid_column_select_filter %}
+{% set data = column.getData().get('value') %}
+    <select name="{{hash}}[{{column.id}}][value]" onchange="this.form.submit();">
         <option value="_default">&nbsp;</option>
         {% for key, value in column.getValues() %}
             <option value="{{key}}"{% if not data is null and data == key %} selected="selected"{% endif %}>{{ value }}</option>
         {% endfor %}
     </select>
-{% endblock grid_column_type_select_filter %}
+{% endblock grid_column_select_filter %}
 {# -------------------------------------------- grid_column_type_date_filter --------------------------------------- #}
-{% block grid_column_type_date_filter %}
-<input type="text" class="datepicker" value="{{ column.getData() }}" name="{{hash}}[{{column.id}}]" onchange="this.form.submit();"/>
-{% endblock grid_column_type_date_filter %}
+{% block grid_column_date_filter %}
+<input type="text" class="datepicker" value="{{ column.getData().get('value', '') }}" name="{{hash}}[{{column.id}}][value]" onchange="this.form.submit();"/>
+{% endblock grid_column_date_filter %}
 

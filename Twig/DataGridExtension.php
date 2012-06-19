@@ -42,6 +42,11 @@ class DataGridExtension extends \Twig_Extension
      */
     protected $names;
 
+    /**
+     * @var array
+     */
+    protected $parameters;
+
     public function __construct($router)
     {
         $this->router = $router;
@@ -80,10 +85,14 @@ class DataGridExtension extends \Twig_Extension
      * @param string $id
      * @return string
      */
-    public function getGrid($grid, $theme = null, $id = '')
+    public function getGrid($grid, $theme = null, $id = '', $parameters = array())
     {
         $this->theme = $theme;
-        $this->names[$grid->getHash()] = $id == '' ? $grid->getId() : $id;
+
+        $hash = $grid->getHash();
+
+        $this->names[$hash] = $id == '' ? $grid->getId() : $id;
+        $this->parameters[$grid->getHash()] = $parameters;
 
         return $this->renderBlock('grid', array('grid' => $grid->prepare()));
     }
@@ -125,38 +134,39 @@ class DataGridExtension extends \Twig_Extension
     public function getGridCell($column, $row, $grid)
     {
         $value = $column->renderCell($row->getField($column->getId()), $row, $this->router);
+        $params = array_merge(array('column' => $column, 'value' => $value, 'row' => $row, 'hash' => $grid->getHash()), $this->parameters[$grid->getHash()]);
 
         if (($id = $this->names[$grid->getHash()]) != '')
         {
             if ($this->hasBlock($block = 'grid_'.$id.'_column_'.$column->getId().'_cell'))
             {
-                return $this->renderBlock($block, array('column' => $column, 'value' => $value, 'row' => $row));
+                return $this->renderBlock($block, $params);
             }
 
             if ($this->hasBlock($block = 'grid_'.$id.'_column_'.$column->getType().'_cell'))
             {
-                return $this->renderBlock($block, array('column' => $column, 'value' => $value, 'row' => $row));
+                return $this->renderBlock($block, $params);
             }
 
             if ($this->hasBlock($block = 'grid_'.$id.'_column_'.$column->getParentType().'_cell'))
             {
-                return $this->renderBlock($block, array('column' => $column, 'value' => $value, 'row' => $row));
+                return $this->renderBlock($block, $params);
             }
         }
 
         if ($this->hasBlock($block = 'grid_column_'.$column->getId().'_cell'))
         {
-            return $this->renderBlock($block, array('column' => $column, 'value' => $value, 'row' => $row));
+            return $this->renderBlock($block, $params);
         }
 
         if ($this->hasBlock($block = 'grid_column_'.$column->getType().'_cell'))
         {
-            return $this->renderBlock($block, array('column' => $column, 'value' => $value, 'row' => $row));
+            return $this->renderBlock($block, $params);
         }
 
         if ($this->hasBlock($block = 'grid_column_'.$column->getParentType().'_cell'))
         {
-            return $this->renderBlock($block, array('column' => $column, 'value' => $value, 'row' => $row));
+            return $this->renderBlock($block, $params);
         }
 
         return $value;
@@ -179,12 +189,12 @@ class DataGridExtension extends \Twig_Extension
                 return $this->renderBlock($block, array('column' => $column, 'hash' => $grid->getHash()));
             }
 
-            if ($this->hasBlock($block = 'grid_'.$id.'_column_type_'.$column->getType().'_filter'))
+            if ($this->hasBlock($block = 'grid_'.$id.'_column_'.$column->getType().'_filter'))
             {
                 return $this->renderBlock($block, array('column' => $column, 'hash' => $grid->getHash()));
             }
 
-            if ($this->hasBlock($block = 'grid_'.$id.'_column_type_'.$column->getParentType().'_filter'))
+            if ($this->hasBlock($block = 'grid_'.$id.'_column_'.$column->getParentType().'_filter'))
             {
                 return $this->renderBlock($block, array('column' => $column, 'hash' => $grid->getHash()));
             }
@@ -195,12 +205,12 @@ class DataGridExtension extends \Twig_Extension
             return $this->renderBlock($block, array('column' => $column, 'hash' => $grid->getHash()));
         }
 		
-        if ($this->hasBlock($block = 'grid_column_type_'.$column->getType().'_filter'))
+        if ($this->hasBlock($block = 'grid_column_'.$column->getType().'_filter'))
         {
             return $this->renderBlock($block, array('column' => $column, 'hash' => $grid->getHash()));
         }
 
-        if ($this->hasBlock($block = 'grid_column_type_'.$column->getParentType().'_filter'))
+        if ($this->hasBlock($block = 'grid_column_'.$column->getParentType().'_filter'))
         {
             return $this->renderBlock($block, array('column' => $column, 'hash' => $grid->getHash()));
         }

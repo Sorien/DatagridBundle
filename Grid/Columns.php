@@ -18,13 +18,13 @@ use Symfony\Component\Security\Core\SecurityContextInterface;
 class Columns implements \IteratorAggregate, \Countable
 {
     /**
-     * @var \Sorien\DataGridBundle\Grid\Column\Column[]
+     * @var Column[]
      */
     private $columns;
     private $extensions;
 
     /**
-     * @var \Symfony\Component\Security\Core\SecurityContextInterface
+     * @var SecurityContextInterface
      */
     private $securityContext;
 
@@ -41,6 +41,7 @@ class Columns implements \IteratorAggregate, \Countable
 
     /**
      * Add column, column object have to extend Column
+     *
      * @param Column $column
      * @param int $position
      * @return Grid

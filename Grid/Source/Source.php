@@ -12,7 +12,10 @@
 namespace Sorien\DataGridBundle\Grid\Source;
 
 use Sorien\DataGridBundle\Grid\Column;
+use Sorien\DataGridBundle\Grid\Columns;
 use Sorien\DataGridBundle\Grid\Mapping\Driver\DriverInterface;
+use Sorien\DataGridBundle\Grid\Row;
+use Sorien\DataGridBundle\Grid\Rows;
 
 abstract class Source implements DriverInterface
 {
@@ -35,9 +38,9 @@ abstract class Source implements DriverInterface
     }
 
     /**
-     * @param \Sorien\DataGridBundle\Grid\Row $row
+     * @param Row $row
      *
-     * @return \Sorien\DataGridBundle\Grid\Row
+     * @return Row
      */
     public function prepareRow($row)
     {
@@ -53,7 +56,7 @@ abstract class Source implements DriverInterface
      * @param int $type Source::EVENT_PREPARE*
      * @param \Closure $callback
      *
-     * @return \Sorien\DataGridBundle\Grid\Source\Source
+     * @return Source
      */
     public function setCallback($type, $callback)
     {
@@ -66,22 +69,29 @@ abstract class Source implements DriverInterface
      * Find data for current page
      *
      * @abstract
-     * @param \Sorien\DataGridBundle\Grid\Column\Column[] $columns
+     * @param Column[] $columns
      * @param int $page
      * @param int $limit
      *
-     * @return \Sorien\DataGridBundle\Grid\Rows
+     * @return Rows
      */
     abstract public function execute($columns, $page = 0, $limit = 0);
 
     /**
      * Get Total count of data items
      *
-     * @param \Sorien\DataGridBundle\Grid\Columns $columns
+     * @param Columns $columns
      *
      * @return int
      */
     abstract function getTotalCount($columns);
+
+    /**
+     * @param Columns $columns
+     * @return array
+     */
+    abstract function getPrimaryKeys($columns);
+
 
     /**
      * Set container
@@ -93,11 +103,9 @@ abstract class Source implements DriverInterface
     abstract public function initialise($container);
 
     /**
-     * Set container
-     *
      * @abstract
-     * @param  $container
-     * @return void
+     * @param $columns
+     * @return mixed
      */
     abstract public function getColumns($columns);
 

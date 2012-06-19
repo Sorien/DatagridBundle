@@ -12,12 +12,14 @@
 namespace Sorien\DataGridBundle\Grid\Source;
 
 use Sorien\DataGridBundle\Grid\Column\Column;
+use Sorien\DataGridBundle\Grid\Columns;
 use Sorien\DataGridBundle\Grid\Rows;
 use Sorien\DataGridBundle\Grid\Row;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\Query\Expr\Orx;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Expr\Comparison;
+use Doctrine\ORM\NonUniqueResultException;
 
 class Entity extends Source
 {
@@ -56,6 +58,11 @@ class Entity extends Source
      */
     private $joins;
 
+    /**
+     * @var array
+     */
+    private $hasDqlFunction;
+
     const TABLE_ALIAS = '_a';
     const COUNT_ALIAS = '__count';
 
@@ -66,6 +73,7 @@ class Entity extends Source
     {
         $this->entityName = $entityName;
         $this->joins = array();
+        $this->hasDqlFunction = true;
     }
 
     public function initialise($container)
@@ -87,41 +95,56 @@ class Entity extends Source
      * @param boolean $withAlias
      * @return string
      */
-    private function getFieldName($column, $withAlias = true)
+    private function getFieldName($column, $inSelect = true)
     {
         $name = $column->getField();
+        $function = '';
 
-        if (strpos($name, '.') === false) {
-            return self::TABLE_ALIAS.'.'.$name;
-        }
-
-        $parent = self::TABLE_ALIAS;
-        $elements = explode('.', $name);
-
-        while ($element = array_shift($elements))
+        if (strpos($name, ':') !== false)
         {
-            if (count($elements) > 0)
-            {
-                $this->joins['_' . $element] = $parent . '.' . $element;
-                $parent = '_' . $element;
-                $name = $element;
-            }
-            else
-            {
-                $name .= '.'.$element;
-            }
+            list($name, $function) = explode(':', $name, 2);
         }
 
-        if ($withAlias)
+        if (strpos($name, '.') === false)
         {
-            return '_' . $name.' as '.$column->getId();
+             $name = self::TABLE_ALIAS.'.'.$name;
+        }
+        else
+        {
+            $parent = self::TABLE_ALIAS;
+            $elements = explode('.', $name);
+
+            while ($element = array_shift($elements))
+            {
+                if (count($elements) > 0)
+                {
+                    $this->joins['_'.$element] = $parent.'.'.$element;
+                    $parent = '_'.$element;
+                    $name = $element;
+                }
+                else
+                {
+                    $name = '_'.$name.'.'.$element;
+                }
+            }
         }
 
-        return '_'.$name;
+        if ($inSelect)
+        {
+            if ($function != '')
+            {
+                $this->hasDqlFunction = True;
+                $name = $function.'('.$name.')';
+            }
+
+            $name .= ' as '.'column_'.$column->getId();
+        }
+
+        return $name;
     }
 
     /**
-     * @param \Sorien\DataGridBundle\Grid\Columns $columns
+     * @param Columns $columns
      * @return null
      */
     public function getColumns($columns)
@@ -161,79 +184,107 @@ class Entity extends Source
     }
 
     /**
-     * @param $columns \Sorien\DataGridBundle\Grid\Column\Column[]
-     * @param $page int Page Number
-     * @param $limit int Rows Per Page
-     * @return \Sorien\DataGridBundle\Grid\Rows
+     * @param Column[] $columns
+     */
+    private function buildQuery($columns)
+    {
+        if ($this->query == null)
+        {
+            $this->query = $this->manager->createQueryBuilder($this->class);
+            $this->query->from($this->class, self::TABLE_ALIAS);
+
+            $where = $this->query->expr()->andx();
+
+            foreach ($columns as $column)
+            {
+                $this->query->addSelect($this->getFieldName($column));
+
+                if ($column->isSorted())
+                {
+                    $this->query->orderBy($this->getFieldName($column, false), $column->getOrder());
+                }
+
+                if ($column->isFiltered())
+                {
+                    if($column->getFiltersConnection() == column::DATA_CONJUNCTION)
+                    {
+                        foreach ($column->getFilters() as $filter)
+                        {
+                            $operator = $this->normalizeOperator($filter->getOperator());
+
+                            $where->add($this->query->expr()->$operator(
+                                $this->getFieldName($column, false),
+                                $this->normalizeValue($filter->getOperator(), $filter->getValue())
+                            ));
+                        }
+                    }
+                    elseif($column->getFiltersConnection() == column::DATA_DISJUNCTION)
+                    {
+                        $sub = $this->query->expr()->orx();
+
+                        foreach ($column->getFilters() as $filter)
+                        {
+                            $operator = $this->normalizeOperator($filter->getOperator());
+
+                            $sub->add($this->query->expr()->$operator(
+                                $this->getFieldName($column, false),
+                                $this->normalizeValue($filter->getOperator(), $filter->getValue())
+                            ));
+                        }
+                        $where->add($sub);
+                    }
+                    $this->query->where($where);
+                }
+            }
+
+            foreach ($this->joins as $alias => $field)
+            {
+                $this->query->leftJoin($field, $alias);
+            }
+
+            if ($this->hasDqlFunction)
+            {
+                foreach ($columns as $column)
+                {
+                    if ($column->isPrimary())
+                    {
+                        $this->query->groupBy($this->getFieldName($column, false));
+                        break;
+                    }
+                }
+               //
+            }
+
+            //call overridden prepareQuery or associated closure
+            $this->prepareQuery($this->query);
+        }
+
+        return clone $this->query;
+    }
+
+    /**
+     * @param Column[] $columns
+     * @param int $page  Page Number
+     * @param int $limit Rows Per Page
+     * @return Rows
      */
     public function execute($columns, $page = 0, $limit = 0)
     {
-        $this->query = $this->manager->createQueryBuilder($this->class);
-        $this->query->from($this->class, self::TABLE_ALIAS);
+        $query = $this->buildQuery($columns);
 
-        $where = $this->query->expr()->andx();
-
-        foreach ($columns as $column)
-        {
-            $this->query->addSelect($this->getFieldName($column));
-
-            if ($column->isSorted())
-            {
-                $this->query->orderBy($this->getFieldName($column, false), $column->getOrder());
-            }
-
-            if ($column->isFiltered())
-            {
-                if($column->getFiltersConnection() == column::DATA_CONJUNCTION)
-                {
-                    foreach ($column->getFilters() as $filter)
-                    {
-                        $operator = $this->normalizeOperator($filter->getOperator());
-
-                        $where->add($this->query->expr()->$operator(
-                            $this->getFieldName($column, false),
-                            $this->normalizeValue($filter->getOperator(), $filter->getValue())
-                        ));
-                    }
-                }
-                elseif($column->getFiltersConnection() == column::DATA_DISJUNCTION)
-                {
-                    $sub = $this->query->expr()->orx();
-
-                    foreach ($column->getFilters() as $filter)
-                    {
-                        $operator = $this->normalizeOperator($filter->getOperator());
-
-                        $sub->add($this->query->expr()->$operator(
-                              $this->getFieldName($column, false),
-                              $this->normalizeValue($filter->getOperator(), $filter->getValue())
-                        ));
-                    }
-                    $where->add($sub);
-                }
-                $this->query->where($where);
-            }
-        }
-
-        foreach ($this->joins as $alias => $field)
-        {
-            $this->query->leftJoin($field, $alias);
-        }
+        $res = $query->getDQL();
 
         if ($page > 0)
         {
-            $this->query->setFirstResult($page * $limit);
+            $query->setFirstResult($page * $limit);
         }
 
         if ($limit > 0)
         {
-            $this->query->setMaxResults($limit);
+            $query->setMaxResults($limit);
         }
 
-        //call overridden prepareQuery or associated closure
-        $this->prepareQuery($this->query);
-
-        $items = $this->query->getQuery()->getResult();
+        $items = $query->getQuery()->getResult();
 
         // hydrate result
         $result = new Rows();
@@ -244,7 +295,8 @@ class Entity extends Source
 
             foreach ($item as $key => $value)
             {
-               $row->setField($key, $value);
+                list($id, $name) = explode('_', $key, 2);
+                $row->setField($name, $value);
             }
 
             //call overridden prepareRow or associated closure
@@ -257,24 +309,52 @@ class Entity extends Source
         return $result;
     }
 
+    /**
+     * @param Columns $columns
+     * @return array
+     */
+    public function getPrimaryKeys($columns)
+    {
+        $query = $this->buildQuery($columns);
+        $query->select($this->getFieldName($columns->getPrimaryColumn()));
+
+        return $query->getQuery()->getResult();
+    }
+
+
+    /**
+     * @param Columns $columns
+     * @return int
+     */
     public function getTotalCount($columns)
     {
-        $this->query->select($this->getFieldName($columns->getPrimaryColumn()));
-        $this->query->setFirstResult(null);
-        $this->query->setMaxResults(null);
+//        $query->select($this->getFieldName($columns->getPrimaryColumn(), false));
+//
+//        $qb = $this->manager->createQueryBuilder();
+//
+//        $qb->select($qb->expr()->count(self::COUNT_ALIAS. '.' . $columns->getPrimaryColumn()->getField()));
+//        $qb->from($this->entityName, self::COUNT_ALIAS);
+//        $qb->where($qb->expr()->in(self::COUNT_ALIAS. '.' . $columns->getPrimaryColumn()->getField(), $query->getDQL()));
+//
+//        //copy existing parameters.
+//        $qb->setParameters($this->query->getParameters());
+//
+//        echo $qb->getQuery()->getDQL(); die();
+//          $result = $qb->getQuery()->getSingleResult();
+        try
+        {
+            $query = $this->buildQuery($columns);
+            $query->resetDQLPart('orderBy')->select($this->query->expr()->count(self::TABLE_ALIAS.'.'.$columns->getPrimaryColumn()->getField()));
+            $result = $query->getQuery()->getSingleResult();
 
-        $qb = $this->manager->createQueryBuilder();
-
-        $qb->select($qb->expr()->count(self::COUNT_ALIAS. '.' . $columns->getPrimaryColumn()->getField()));
-        $qb->from($this->entityName, self::COUNT_ALIAS);
-        $qb->where($qb->expr()->in(self::COUNT_ALIAS. '.' . $columns->getPrimaryColumn()->getField(), $this->query->getDQL()));
-
-        //copy existing parameters.
-        $qb->setParameters($this->query->getParameters());
-
-        $result = $qb->getQuery()->getSingleResult();
-
-        return (int) $result[1];
+            return (int) $result[1];
+        }
+        catch (NonUniqueResultException $e)
+        {
+            $query = $this->buildQuery($columns);
+            $result = $query->getQuery()->getResult();
+            return count($result);
+        }
     }
 
     public function getFieldsMetadata($class)
