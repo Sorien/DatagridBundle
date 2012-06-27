@@ -20,6 +20,7 @@ use Doctrine\ORM\Query\Expr\Orx;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Expr\Comparison;
 use Doctrine\ORM\NonUniqueResultException;
+use Doctrine\ORM\NoResultException;
 
 class Entity extends Source
 {
@@ -354,6 +355,10 @@ class Entity extends Source
             $query = $this->buildQuery($columns);
             $result = $query->getQuery()->getResult();
             return count($result);
+        }
+        catch (NoResultException $e)
+        {
+            return 0;
         }
     }
 
