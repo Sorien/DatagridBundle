@@ -74,7 +74,7 @@ class Entity extends Source
     {
         $this->entityName = $entityName;
         $this->joins = array();
-        $this->hasDqlFunction = true;
+        $this->hasDqlFunction = false;
     }
 
     public function initialise($container)
@@ -134,7 +134,7 @@ class Entity extends Source
         {
             if ($function != '')
             {
-                $this->hasDqlFunction = True;
+                $this->hasDqlFunction = true;
                 $name = $function.'('.$name.')';
             }
 
@@ -185,7 +185,8 @@ class Entity extends Source
     }
 
     /**
-     * @param Column[] $columns
+     * @param Column[]|Columns $columns
+     * @return \Doctrine\ORM\QueryBuilder
      */
     private function buildQuery($columns)
     {
@@ -196,7 +197,7 @@ class Entity extends Source
 
             $where = $this->query->expr()->andx();
 
-            foreach ($columns as $column)
+            foreach ($columns->getSourceColumns() as $column)
             {
                 $this->query->addSelect($this->getFieldName($column));
 
@@ -214,7 +215,7 @@ class Entity extends Source
                             $operator = $this->normalizeOperator($filter->getOperator());
 
                             $where->add($this->query->expr()->$operator(
-                                $this->getFieldName($filter->hasId() ? $filter->getId() : $column, false),
+                                $this->getFieldName($filter->hasId() ? $columns->getColumnById($filter->getId()) : $column, false),
                                 $this->normalizeValue($filter->getOperator(), $filter->getValue())
                             ));
                         }
@@ -228,7 +229,7 @@ class Entity extends Source
                             $operator = $this->normalizeOperator($filter->getOperator());
 
                             $sub->add($this->query->expr()->$operator(
-                                $this->getFieldName($filter->hasId() ? $filter->getId() : $column, false),
+                                $this->getFieldName($filter->hasId() ? $columns->getColumnById($filter->getId()) : $column, false),
                                 $this->normalizeValue($filter->getOperator(), $filter->getValue())
                             ));
                         }
@@ -264,7 +265,7 @@ class Entity extends Source
     }
 
     /**
-     * @param Column[] $columns
+     * @param Column[]|Columns $columns
      * @param int $page  Page Number
      * @param int $limit Rows Per Page
      * @return Rows
@@ -311,7 +312,7 @@ class Entity extends Source
     }
 
     /**
-     * @param Columns $columns
+     * @param Column[]|Columns $columns
      * @return array
      */
     public function getPrimaryKeys($columns)
@@ -322,9 +323,8 @@ class Entity extends Source
         return $query->getQuery()->getResult();
     }
 
-
     /**
-     * @param Columns $columns
+     * @param Column[]|Columns $columns
      * @return int
      */
     public function getTotalCount($columns)

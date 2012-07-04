@@ -14,7 +14,7 @@ namespace Sorien\DataGridBundle\Grid\Column;
 use Sorien\DataGridBundle\Grid\Filter;
 use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
-class RangeColumn extends Column
+class RangeColumn extends TextColumn
 {
     private $inputType;
 

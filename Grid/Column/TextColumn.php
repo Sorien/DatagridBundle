@@ -25,13 +25,14 @@ class TextColumn extends Column
         /**
          * defined like ":foo, :faa - :foo"
          */
-        $this->pattern = $this->getParam('pattern', '');
+        $this->pattern = $this->getParam('pattern', ':'.$this->getId());
         $this->columns = $this->getParam('columns', array());
     }
 
     public function getFilters()
     {
-        $result = array();
+        $result = array(new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data->get('value', '').'.*/i'));
+
         if (!empty($this->columns))
         {
             foreach ($this->columns as $column)
@@ -39,21 +40,19 @@ class TextColumn extends Column
                 $result[] = new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data->get('value', '').'.*/i', $column);
             }
         }
-        else
-        {
-            $result[] = new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data->get('value', '').'.*/i');
-        }
 
         return $result;
     }
 
     public function renderCell($value, $row, $router)
     {
+        $value = str_replace(":".$this->getId(), $value, $this->pattern);
+
         if (!empty($this->columns))
         {
             foreach ($this->columns as $column)
             {
-                $value = str_replace(":"+$column, $row->getField($column), $this->pattern);
+                $value = str_replace(":".$column, $row->getField($column), $value);
             }
         }
 

@@ -392,7 +392,7 @@ class Grid
      */
     public function prepare()
     {
-        $this->rows = $this->source->execute($this->columns->getIterator(true), $this->page, $this->limit);
+        $this->rows = $this->source->execute($this->columns, $this->page, $this->limit);
 
         if(!$this->rows instanceof Rows)
         {

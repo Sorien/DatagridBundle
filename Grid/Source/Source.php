@@ -69,7 +69,7 @@ abstract class Source implements DriverInterface
      * Find data for current page
      *
      * @abstract
-     * @param Column[] $columns
+     * @param Column[]|Columns $columns
      * @param int $page
      * @param int $limit
      *
@@ -80,18 +80,17 @@ abstract class Source implements DriverInterface
     /**
      * Get Total count of data items
      *
-     * @param Columns $columns
+     * @param Column[]|Columns $columns
      *
      * @return int
      */
     abstract function getTotalCount($columns);
 
     /**
-     * @param Columns $columns
+     * @param Column[]|Columns $columns
      * @return array
      */
     abstract function getPrimaryKeys($columns);
-
 
     /**
      * Set container

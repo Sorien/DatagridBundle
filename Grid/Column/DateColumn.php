@@ -12,8 +12,9 @@
 namespace Sorien\DataGridBundle\Grid\Column;
 
 use Sorien\DataGridBundle\Grid\Filter;
+use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
-class DateColumn extends TextColumn
+class DateColumn extends Column
 {
     private $format;
     private $pattern;
@@ -47,6 +48,21 @@ class DateColumn extends TextColumn
         {
             return '';
         }
+    }
+
+    public function setData(FilterStorageBag $data)
+    {
+        if ($data->get('value', '') != '')
+        {
+            $this->data->assign($data);
+        }
+
+        return $this;
+    }
+
+    public function isFiltered()
+    {
+        return $this->data->has('value');
     }
     
     public function getType()

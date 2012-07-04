@@ -34,9 +34,14 @@ class Columns implements \IteratorAggregate, \Countable
         $this->securityContext = $securityContext;
     }
 
-    public function getIterator($showOnlySourceColumns = false)
+    public function getIterator()
     {
-        return new ColumnsIterator(new \ArrayIterator($this->columns), $showOnlySourceColumns);
+        return new ColumnsIterator(new \ArrayIterator($this->columns), false);
+    }
+
+    public function getSourceColumns()
+    {
+        return new ColumnsIterator(new \ArrayIterator($this->columns), true);
     }
 
     /**

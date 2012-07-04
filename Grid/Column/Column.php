@@ -13,6 +13,8 @@ namespace Sorien\DataGridBundle\Grid\Column;
 
 use Symfony\Component\Security\Core\SecurityContextInterface;
 use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
+use Sorien\DataGridBundle\Grid\Row;
+use Sorien\DataGridBundle\Grid\Filter;
 
 abstract class Column
 {
@@ -66,7 +68,7 @@ abstract class Column
      * Default Column constructor
      *
      * @param array $params
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function __construct($params = null)
     {
@@ -114,7 +116,7 @@ abstract class Column
      * Draw cell
      *
      * @param string $value
-     * @param \Sorien\DataGridBundle\Grid\Row $row
+     * @param Row $row
      * @param $router
      * @return string
      */
@@ -134,7 +136,7 @@ abstract class Column
      * Set column callback
      *
      * @param  $callback
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function setCallback($callback)
     {
@@ -147,7 +149,7 @@ abstract class Column
      * Set column identifier
      *
      * @param $id
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function setId($id)
     {
@@ -170,7 +172,7 @@ abstract class Column
      * Set column title
      *
      * @param string $title
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function setTitle($title)
     {
@@ -278,7 +280,7 @@ abstract class Column
      * Set column order
      *
      * @param string $order asc|desc
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function setOrder($order)
     {
@@ -316,7 +318,7 @@ abstract class Column
      * Get column data filters
      * todo: maybe change to own class not array
      *
-     * @return \Sorien\DataGridBundle\Grid\Filter[]
+     * @return Filter[]
      */
     public function getFilters()
     {
@@ -327,7 +329,7 @@ abstract class Column
      * Set column width
      *
      * @param int $size in pixels
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function setSize($size)
     {
@@ -366,7 +368,7 @@ abstract class Column
      * Set filter data from Storage or Request
      *
      * @param  FilterStorageBag $data
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function setData(FilterStorageBag $data)
     {
@@ -388,7 +390,7 @@ abstract class Column
      * Set column visibility for source class
      *
      * @param $value
-     * @return \Sorien\DataGridBundle\Grid\Column\Column
+     * @return Column
      */
     public function setIsVisibleForSource($value)
     {
@@ -436,6 +438,7 @@ abstract class Column
      * Set column align
      *
      * @param string $align left/right/center
+     * @throws \InvalidArgumentException
      */
     public function setAlign($align)
     {
