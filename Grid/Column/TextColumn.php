@@ -26,7 +26,7 @@ class TextColumn extends Column
          * defined like ":foo, :faa - :foo"
          */
         $this->pattern = $this->getParam('pattern', '');
-        $this->pattern = $this->getParam('columns', array());
+        $this->columns = $this->getParam('columns', array());
     }
 
     public function getFilters()
