@@ -214,7 +214,7 @@ class Entity extends Source
                             $operator = $this->normalizeOperator($filter->getOperator());
 
                             $where->add($this->query->expr()->$operator(
-                                $this->getFieldName($column, false),
+                                $this->getFieldName($filter->hasId() ? $filter->getId() : $column, false),
                                 $this->normalizeValue($filter->getOperator(), $filter->getValue())
                             ));
                         }
@@ -228,7 +228,7 @@ class Entity extends Source
                             $operator = $this->normalizeOperator($filter->getOperator());
 
                             $sub->add($this->query->expr()->$operator(
-                                $this->getFieldName($column, false),
+                                $this->getFieldName($filter->hasId() ? $filter->getId() : $column, false),
                                 $this->normalizeValue($filter->getOperator(), $filter->getValue())
                             ));
                         }

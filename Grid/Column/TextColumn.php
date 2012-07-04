@@ -16,9 +16,53 @@ use Sorien\DataGridBundle\Grid\Helper\FilterStorageBag;
 
 class TextColumn extends Column
 {
+    private $pattern;
+    private $columns;
+
+    public function __initialize(array $params)
+    {
+        parent::__initialize($params);
+        /**
+         * defined like ":foo, :faa - :foo"
+         */
+        $this->pattern = $this->getParam('pattern', '');
+        $this->pattern = $this->getParam('columns', array());
+    }
+
     public function getFilters()
     {
-        return array(new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data->get('value', '').'.*/i'));
+        $result = array();
+        if (!empty($this->columns))
+        {
+            foreach ($this->columns as $column)
+            {
+                $result[] = new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data->get('value', '').'.*/i', $column);
+            }
+        }
+        else
+        {
+            $result[] = new Filter(self::OPERATOR_REGEXP, '/.*'.$this->data->get('value', '').'.*/i');
+        }
+
+        return $result;
+    }
+
+    public function renderCell($value, $row, $router)
+    {
+        if (!empty($this->columns))
+        {
+            foreach ($this->columns as $column)
+            {
+                $value = str_replace(":"+$column, $row->getField($column), $this->pattern);
+            }
+        }
+
+        return $value;
+    }
+
+    public function getFiltersConnection()
+    {
+        return empty($this->columns) ? self::DATA_CONJUNCTION : self::DATA_DISJUNCTION;
     }
 
     public function setData(FilterStorageBag $data)
